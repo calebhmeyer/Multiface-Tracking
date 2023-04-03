@@ -1,0 +1,99 @@
+#cv2 main script
+#haarCascades documentation: 
+#https://docs.opencv.org/4.x/d1/de5/classcv_1_1CascadeClassifier.html#aaf8181cb63968136476ec4204ffca498
+
+import numpy as np
+import cv2
+import time 
+propdata = op('table_propdata')
+
+#frames_per_second = 30
+#time_per_frame = 1/ frames_per_second
+frame_table = op('frame')
+face_cascade = cv2.CascadeClassifier('data/haarcascade_frontalface_default.xml')
+stats = op('table1')
+
+def onCook(scriptOp):
+    if frame_table[0,0] >= 3:  
+        #Resets the frame counter to 0  
+        frame_table[0,0] = 0
+        # Get a NumPy array representing an image from an operator in TouchDesigner called source_analyze.
+        frame = op('source_analyze').numpyArray()
+
+        # Copy the frame NumPy array into another array called scriptOp.
+        scriptOp.copyNumpyArray(frame)
+
+        # Convert the color image represented by the frame NumPy array from RGB color space to grayscale.
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+
+        # Scale the pixel values in the gray image by 255.0.
+        gray = gray * 255.0
+
+       # Convert the data type of the gray image from floating-point values to unsigned 8-bit integers.
+        gray = gray.astype(np.uint8)
+
+        # Flip the gray image vertically (i.e., upside down) and assign the result to gray_invert.
+        gray_invert = np.flipud(gray)
+        
+        #Gathers variables before performing the detectMultiScale
+        scale_factor = float(op('scaleFactor_null')['v1'])
+        #scale_factor = round(scale_factor, 3)
+        
+        #Detects the faces
+        faces = face_cascade.detectMultiScale(gray_invert,
+        minNeighbors = int(op('minNeighbors_null')['v1'])
+        , 
+        scaleFactor = scale_factor
+        )
+
+        scr = op('script_opencv')
+        scr.lock = True
+        scr.clear()
+
+        tx = scr.appendChan('tx')
+        ty = scr.appendChan('ty')
+        tw = scr.appendChan('tw')
+        th = scr.appendChan('th')
+        face_index = scr.appendChan('face_index')
+
+        num_faces = min(len(faces), 3)
+        scr.numSamples = num_faces
+
+        source_analyze_w = op('source_analyze').width
+        source_analyze_h = op('source_analyze').height
+        aspect = source_analyze_w / source_analyze_h
+        
+        #Printout of the data
+        stats.clear()
+        stats.appendRow(['unused', 'index', 'tx', 'ty', 'tw', 'th', 'isActive'])
+
+        face_data = []
+        for i in range(num_faces):
+            x = faces[i][0]
+            y = faces[i][1]
+            w = faces[i][2]
+            h = faces[i][3]
+            tx_val = (x + w / 2) / source_analyze_w
+            ty_val = (- (y + h / 2) / source_analyze_h + 1) / aspect
+            tw_val = w / source_analyze_w
+            th_val = (h / source_analyze_h)
+            face_data.append([i, tx_val, ty_val, tw_val, th_val])
+
+        # Sort faces based on the sum of tx and ty
+        face_data.sort(key=lambda x: x[1] + x[2])
+
+        for i, face in enumerate(face_data):
+            tx[i] = face[1]
+            ty[i] = face[2]
+            tw[i] = face[3]
+            th[i] = face[4]
+            face_index[i] = i
+            stats.appendRow([0, i, tx[i], ty[i], tw[i], th[i], 1])
+
+        for i in range(num_faces, 3):
+            stats.appendRow([0, i, 0, 0, 0, 0, 0])
+
+    else:
+        frame_table[0,0] = frame_table[0,0] + 1
+    return
+    #time.sleep(time_per_frame)
