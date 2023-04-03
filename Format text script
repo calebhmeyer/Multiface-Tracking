@@ -1,0 +1,14 @@
+propdata = op('table_propdata')
+
+
+def onCook(scriptOp):
+       
+    for i in range(1, propdata.numRows):
+        partnumberu = propdata[i, 1].val
+        partstringu = 'face1/pt{}:u'.format(partnumberu)
+        propdata[i, 5] = partstringu
+        
+        partnumberv = propdata[i, 1].val
+        partstringv = 'face1/pt{}:v'.format(partnumberv)
+        propdata[i, 6] = partstringv
+        
